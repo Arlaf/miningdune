@@ -7,8 +7,6 @@ Created on Wed Dec 12 19:29:17 2018
 
 import spacy
 import string
-#import re
-
 
 # Reading Dune.txt
 with open("D:\Dropbox\M2\Text Mining\Projet\Dune.txt", "r") as f:
@@ -40,14 +38,10 @@ sentences = [s.split("? ") for s in sentences]
 sentences = [item for sublist in sentences for item in sublist]
 sentences = [s.strip() for s in sentences if len(s) > 1]
 
-
-
-
-
 # magic happens now
-#nlp = spacy.load('en') 
-#doc = nlp(book[1:10000])
-#
-#for entity in doc.ents:
-#    print(entity.text, entity.label_)
+nlp = spacy.load('en') 
+doc = nlp(book[1:10000])
+
+for entity in doc.ents:
+    print(entity.text, entity.label_)
     
