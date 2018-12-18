@@ -16,7 +16,7 @@ stopwords = set(nltk.corpus.stopwords.words('english'))
 
 tokenizer = nltk.tokenize.RegexpTokenizer(r'\w+')
 corpus = tokenizer.tokenize(raw)
-#corpus = [t.lower() for t in corpus if t not in stopwords]
+corpus = [t.lower() for t in corpus if t not in stopwords]
 
 #ps = nltk.stem.PorterStemmer()
 #stemmed = [ps.stem(t) for t in corpus]
@@ -47,23 +47,23 @@ corpus = tokenizer.tokenize(raw)
 #for i in range(0, N-2*f):
 #    D[i] = [corpus[i+f]] + corpus[(i):(i+f)] + corpus[(i+f+1):(i+2*f+1)]
 
+names = ['bene', 'paul', 'pain', 'leto', 'duncan', 'chani', 'alia']
 
-
-corpus = ['aaf',
-          'ezrh',
-          'paul',
-          '<seg',
-          'egeg',
-          'zeg',
-          'jean',
-          'zeg',
-          'paul',
-          'zhgz',
-          'zegz']
-names = ['jean','paul']
-max_gap = 3
-i = 6
-j = 8
+#corpus = ['aaf',
+#          'ezrh',
+#          'paul',
+#          '<seg',
+#          'egeg',
+#          'zeg',
+#          'jean',
+#          'zeg',
+#          'paul',
+#          'zhgz',
+#          'zegz']
+#names = ['jean','paul']
+#max_gap = 3
+#i = 6
+#j = 8
 
 def get_key(name1, name2):
     l = [name1, name2]
@@ -79,7 +79,6 @@ def find_cooc(names, corpus, max_gap = 8):
     
     # Initialisation du dictionnaire des cooccurrences
     cooc = {}
-    
     
     for name in names:
         # Occurences du nom en cours
@@ -104,39 +103,73 @@ def find_cooc(names, corpus, max_gap = 8):
                     context.remove(name2)
                     # Si la clé n'existe pas dans cooc on la crée
                     if key not in cooc:
-                        cooc[key] = [context]
+                        cooc[key] = {'names' : [name, name2],
+                                     'context' : [context]}
                     else:
-                        cooc[key].append(context)
+                        cooc[key]['context'].append(context)
     return cooc
+
+def get_names_from_key(key):
+    names = cooc[key]['names']
+    return names
     
     
-    # Pour tous les tokens i du corpus
-    for i in range(0, len(corpus)):
-        # Si le token i est un dans la liste des noms fournie
-        if corpus.iloc[i, 0] in names:
-            # Identification de l'entité
-            name = corpus.iloc[i, 0]
-            others = names[:]
-            others.remove(name)
-            # Construction du voisinage
-            # index des tokens précédents
-            inf = list(range(max(0, i - max_gap), i))
-            # index des tokens suivants
-            sup = list(range((i+1), min(len(corpus), i+max_gap)))
-            neighborhood = inf + sup
-            # 
-            neighbors = pd.DataFrame(data=None, columns=corpus.columns)
-            # Pour tous les mots du voisinage
-            for j in neighborhood:
-                # le token est-il un nom ?
-                if corpus.iloc[j,0] in others:
-                    neighbors.append(corpus.iloc[j, ])
-            # S'il y a un voisin dans le voisinage
-            if len(neighbors > 0):
+#    # Pour tous les tokens i du corpus
+#    for i in range(0, len(corpus)):
+#        # Si le token i est un dans la liste des noms fournie
+#        if corpus.iloc[i, 0] in names:
+#            # Identification de l'entité
+#            name = corpus.iloc[i, 0]
+#            others = names[:]
+#            others.remove(name)
+#            # Construction du voisinage
+#            # index des tokens précédents
+#            inf = list(range(max(0, i - max_gap), i))
+#            # index des tokens suivants
+#            sup = list(range((i+1), min(len(corpus), i+max_gap)))
+#            neighborhood = inf + sup
+#            # 
+#            neighbors = pd.DataFrame(data=None, columns=corpus.columns)
+#            # Pour tous les mots du voisinage
+#            for j in neighborhood:
+#                # le token est-il un nom ?
+#                if corpus.iloc[j,0] in others:
+#                    neighbors.append(corpus.iloc[j, ])
+#            # S'il y a un voisin dans le voisinage
+#            if len(neighbors > 0):
+
+cooc = find_cooc(names, corpus, 10)
+
+# Importation du lexique
+lexicon = pd.read_csv("C:\\Users\\arnau\\Desktop\\a.txt", sep="\t", header=None)
+lexicon.columns = ["word", "emotion", "value"]
+lexicon['word'] = lexicon['word'].astype(str)
+lexicon['word'].astype(str)
+
+# Liste des différentes émotions
+emotions = lexicon.emotion.unique().tolist()
+
+# Liste de tous les couples de personnage observés
+pairs = list(cooc.keys())
+
+# Initialisation d'un df des emotions caractérisants un couple de personnages
+d = {'pair' : sum(([p]*len(emotions) for p in pairs),[]),
+     'cooc' : [0] * len(pairs) * len(emotions),
+     'emotion' : emotions * len(pairs),
+     'value' : [0] * len(pairs) * len(emotions)}
+emo = pd.DataFrame(d)
+
+
+for pair in pairs:
+    # Nombre de cooccurrences de cette paire
+    emo.loc[emo.pair == pair, 'cooc'] = len(cooc[pair]['context']) 
+    # 
+    context = [item for sublist in cooc[pair]['context'] for item in sublist]
+    for token in context:
+        if len(lexicon.loc[lexicon.word == token,:]) > 0:
+            for emotion in emotions:
+                print(lexicon.loc[(lexicon.word == token) & (lexicon.emotion == emotion), 'value'])
+                emo.loc[(emo.pair == pair) & (emo.emotion == emotion), 'value'] = emo.loc[(emo.pair == pair) & (emo.emotion == emotion), 'value'] \
+                                                                                + lexicon.loc[(lexicon.word == token) & (lexicon.emotion == emotion), 'value']
                 
-                
-                    
-                
-                        
-    return D
 
