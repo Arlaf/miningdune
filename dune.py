@@ -6,10 +6,9 @@ Created on Mon Dec 17 18:13:47 2018
 """
 
 import nltk
-import numpy as np
 import pandas as pd
 
-with open("D:\Dropbox\M2\Text Mining\Projet\Dune.txt", "r") as f:
+with open("D:\Repo_git\miningdune\Dune.txt", "r") as f:
     raw = f.read().strip()
 
 stopwords = set(nltk.corpus.stopwords.words('english'))
@@ -18,57 +17,39 @@ tokenizer = nltk.tokenize.RegexpTokenizer(r'\w+')
 corpus = tokenizer.tokenize(raw)
 corpus = [t.lower() for t in corpus if t not in stopwords]
 
-#ps = nltk.stem.PorterStemmer()
-#stemmed = [ps.stem(t) for t in corpus]
+pd_gaz = pd.read_csv("D:\Repo_git\miningdune\gazetier.csv", sep = ',')
 
-#dico = list(set(corpus))
-#dico.sort()
+# Construction du gazetier
+gaz = {}
+for i in range(len(pd_gaz)):
+    j = 1
+    while j < len(pd_gaz.columns):
+        key = pd_gaz.iloc[i,j]
+        if not isinstance(key, str):
+            break
+        gaz[key] = pd_gaz.iloc[i,0]
+        j = j+1
 
+keys = list(gaz.keys())
 
-
-#from sklearn.feature_extraction.text import CountVectorizer
-
-#count_vect = CountVectorizer()
-#TermCountsDoc = count_vect.fit_transform(corpus)
-#Terms = np.array(count_vect.vocabulary_.keys())
-
-
-
-
-#N = len(corpus)
-#D = [''] * N
-#
-## Taille de la fenetre
-#f = 2
-#
-## Ajout de mots NULL au début et à la fin du corpus
-#corpus = (['<<NULL>>'] * f) + corpus + (['<<NULL>>'] * f)
-#    
-#for i in range(0, N-2*f):
-#    D[i] = [corpus[i+f]] + corpus[(i):(i+f)] + corpus[(i+f+1):(i+2*f+1)]
-
-names = ['bene', 'paul', 'pain', 'leto', 'duncan', 'chani', 'alia']
-
-#corpus = ['aaf',
-#          'ezrh',
-#          'paul',
-#          '<seg',
-#          'egeg',
-#          'zeg',
-#          'jean',
-#          'zeg',
-#          'paul',
-#          'zhgz',
-#          'zegz']
-#names = ['jean','paul']
-#max_gap = 3
-#i = 6
-#j = 8
+# Transformation des noms du corpus
+i = 0
+while i < len(corpus):
+    if i < len(corpus)-1:
+        test = corpus[i] + ' ' + corpus[i+1]
+        if test in keys:
+            corpus[i] = gaz[test]
+            corpus.pop(i+1)
+        elif corpus[i] in keys:
+            corpus[i] = gaz[corpus[i]]
+    elif corpus[i] in keys:
+        corpus[i] = gaz[corpus[i]]
+    i = i+1
 
 def get_key(name1, name2):
     l = [name1, name2]
     l.sort()
-    key = l[0] + '_' + l[1]
+    key = l[0] + '&' + l[1]
     return key
 
 def find_cooc(names, corpus, max_gap = 8):
@@ -109,40 +90,14 @@ def find_cooc(names, corpus, max_gap = 8):
                         cooc[key]['context'].append(context)
     return cooc
 
-def get_names_from_key(key):
-    names = cooc[key]['names']
-    return names
-    
-    
-#    # Pour tous les tokens i du corpus
-#    for i in range(0, len(corpus)):
-#        # Si le token i est un dans la liste des noms fournie
-#        if corpus.iloc[i, 0] in names:
-#            # Identification de l'entité
-#            name = corpus.iloc[i, 0]
-#            others = names[:]
-#            others.remove(name)
-#            # Construction du voisinage
-#            # index des tokens précédents
-#            inf = list(range(max(0, i - max_gap), i))
-#            # index des tokens suivants
-#            sup = list(range((i+1), min(len(corpus), i+max_gap)))
-#            neighborhood = inf + sup
-#            # 
-#            neighbors = pd.DataFrame(data=None, columns=corpus.columns)
-#            # Pour tous les mots du voisinage
-#            for j in neighborhood:
-#                # le token est-il un nom ?
-#                if corpus.iloc[j,0] in others:
-#                    neighbors.append(corpus.iloc[j, ])
-#            # S'il y a un voisin dans le voisinage
-#            if len(neighbors > 0):
+names = pd_gaz.id.tolist()
 
 cooc = find_cooc(names, corpus, 10)
 
 # Importation du lexique
-lexicon = pd.read_csv("C:\\Users\\arnau\\Desktop\\a.txt", sep="\t", header=None)
+lexicon = pd.read_csv("D:\Repo_git\miningdune\lexicon.txt", sep="\t", header=None)
 lexicon.columns = ["word", "emotion", "value"]
+lexicon = lexicon.loc[~lexicon.emotion.isin(['anticipation', 'surprise']),]
 lexicon['word'] = lexicon['word'].astype(str)
 lexicon['word'].astype(str)
 
@@ -161,6 +116,7 @@ emo = pd.DataFrame(d)
 
 
 for pair in pairs:
+    print(pair)
     # Nombre de cooccurrences de cette paire
     emo.loc[emo.pair == pair, 'cooc'] = len(cooc[pair]['context']) 
     # 
@@ -168,8 +124,10 @@ for pair in pairs:
     for token in context:
         if len(lexicon.loc[lexicon.word == token,:]) > 0:
             for emotion in emotions:
-                print(lexicon.loc[(lexicon.word == token) & (lexicon.emotion == emotion), 'value'])
-                emo.loc[(emo.pair == pair) & (emo.emotion == emotion), 'value'] = emo.loc[(emo.pair == pair) & (emo.emotion == emotion), 'value'] \
-                                                                                + lexicon.loc[(lexicon.word == token) & (lexicon.emotion == emotion), 'value']
+                emo.loc[(emo.pair == pair) & (emo.emotion == emotion), 'value'] = emo.loc[(emo.pair == pair) & (emo.emotion == emotion), 'value'].values + lexicon.loc[(lexicon.word == token) & (lexicon.emotion == emotion), 'value'].values
                 
+emo.to_csv('C:\\Users\\arnau\\Desktop\\emo.txt', sep='\t', encoding='utf-8')
 
+#d = {'names' : names}
+#df = pd.DataFrame(d)
+#df.to_csv('C:\\Users\\arnau\\Desktop\\names.txt', sep='\t', encoding='utf-8')
